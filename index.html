@@ -24,6 +24,13 @@
         </div>
       </div>
       <div class="header-actions">
+        <button id="wakeLockBtn" class="btn btn-secondary" title="Keep Screen Awake (prevents phone from sleeping)" aria-label="Keep Screen Awake">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <span class="btn-text">Keep Awake</span>
+        </button>
         <button id="shuffleAllBtn" class="btn btn-primary" title="Shuffle Play All Songs">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
             <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
@@ -32,6 +39,9 @@
         </button>
       </div>
     </header>
+
+    <!-- Hidden audio anchor for background & lockscreen playback keepalive -->
+    <audio id="bgAudioKeepAlive" loop playsinline preload="auto" src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA" style="display:none;"></audio>
 
     <!-- Search & Filters -->
     <section class="controls-section">

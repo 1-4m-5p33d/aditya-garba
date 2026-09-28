@@ -15,6 +15,8 @@
   let isDraggingProgress = false;
   let savedVolume = 100;
   let isMuted = false;
+  let wakeLockSentinel = null;
+  let isWakeLockEnabled = true;
 
   // DOM Elements
   const songListEl = document.getElementById('songList');
@@ -25,6 +27,8 @@
   const clearSearchBtn = document.getElementById('clearSearchBtn');
   const tagsContainer = document.getElementById('tagsContainer');
   const shuffleAllBtn = document.getElementById('shuffleAllBtn');
+  const wakeLockBtn = document.getElementById('wakeLockBtn');
+  const bgAudioEl = document.getElementById('bgAudioKeepAlive');
   
   // Player Controls DOM
   const playPauseBtn = document.getElementById('playPauseBtn');
@@ -46,6 +50,66 @@
   
   const volumeSlider = document.getElementById('volumeSlider');
   const muteBtn = document.getElementById('muteBtn');
+
+  // Background Audio Anchor for Mobile Lockscreen Keepalive
+  function startBackgroundAudioSession() {
+    if (bgAudioEl && bgAudioEl.paused) {
+      bgAudioEl.play().catch(() => {});
+    }
+  }
+
+  function pauseBackgroundAudioSession() {
+    if (bgAudioEl && !bgAudioEl.paused) {
+      bgAudioEl.pause();
+    }
+  }
+
+  // Screen Wake Lock API (keeps screen awake during playback)
+  async function acquireWakeLock() {
+    if (!('wakeLock' in navigator) || !isWakeLockEnabled || !isPlaying) return;
+    try {
+      if (!wakeLockSentinel) {
+        wakeLockSentinel = await navigator.wakeLock.request('screen');
+        wakeLockSentinel.addEventListener('release', () => {
+          wakeLockSentinel = null;
+          updateWakeLockUI();
+        });
+        updateWakeLockUI();
+      }
+    } catch (err) {
+      console.warn('Wake Lock request:', err);
+    }
+  }
+
+  async function releaseWakeLock() {
+    if (wakeLockSentinel) {
+      try {
+        await wakeLockSentinel.release();
+      } catch (err) {}
+      wakeLockSentinel = null;
+      updateWakeLockUI();
+    }
+  }
+
+  function toggleWakeLock() {
+    isWakeLockEnabled = !isWakeLockEnabled;
+    if (isWakeLockEnabled && isPlaying) {
+      acquireWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+    updateWakeLockUI();
+  }
+
+  function updateWakeLockUI() {
+    if (!wakeLockBtn) return;
+    wakeLockBtn.classList.toggle('active', isWakeLockEnabled);
+    wakeLockBtn.setAttribute('aria-pressed', isWakeLockEnabled ? 'true' : 'false');
+    const textEl = wakeLockBtn.querySelector('.btn-text');
+    if (textEl) {
+      textEl.textContent = isWakeLockEnabled ? 'Awake On' : 'Awake Off';
+    }
+  }
 
   // Format Seconds to MM:SS
   function formatTime(seconds) {
@@ -109,10 +173,16 @@
       isPlaying = true;
       updatePlayPauseUI();
       startProgressTracker();
+      startBackgroundAudioSession();
+      acquireWakeLock();
+      updateMediaSessionState();
     } else if (event.data === window.YT.PlayerState.PAUSED) {
       isPlaying = false;
       updatePlayPauseUI();
       stopProgressTracker();
+      pauseBackgroundAudioSession();
+      releaseWakeLock();
+      updateMediaSessionState();
     } else if (event.data === window.YT.PlayerState.ENDED) {
       stopProgressTracker();
       if (repeatMode === 'one') {
@@ -245,6 +315,34 @@
     playSong(song);
   }
 
+  function updateMediaSession(song) {
+    if (!('mediaSession' in navigator) || !song) return;
+
+    const artworkSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><rect width="512" height="512" fill="%2317171c"/><circle cx="256" cy="256" r="180" fill="%23f59e0b" fill-opacity="0.15"/><text x="256" y="315" font-size="190" text-anchor="middle">🪘</text></svg>`;
+    const artworkDataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(artworkSvg)}`;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: song.title || 'Garba Track',
+      artist: song.artist || 'Aditya Garba',
+      album: song.album || (song.nonstop ? 'Nonstop Mix' : 'Aditya Garba'),
+      artwork: [
+        { src: artworkDataUrl, sizes: '96x96', type: 'image/svg+xml' },
+        { src: artworkDataUrl, sizes: '128x128', type: 'image/svg+xml' },
+        { src: artworkDataUrl, sizes: '192x192', type: 'image/svg+xml' },
+        { src: artworkDataUrl, sizes: '256x256', type: 'image/svg+xml' },
+        { src: artworkDataUrl, sizes: '512x512', type: 'image/svg+xml' }
+      ]
+    });
+
+    updateMediaSessionState();
+  }
+
+  function updateMediaSessionState() {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    }
+  }
+
   function playSong(song) {
     if (!song) return;
     currentSong = song;
@@ -272,14 +370,10 @@
       ytPlayer.playVideo();
     }
 
-    // Media Session API for mobile lockscreen controls
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: song.title,
-        artist: song.artist,
-        album: song.album || 'Aditya Garba'
-      });
-    }
+    // Keep background audio session and lockscreen controls active
+    startBackgroundAudioSession();
+    acquireWakeLock();
+    updateMediaSession(song);
   }
 
   function togglePlayPause() {
@@ -295,13 +389,18 @@
         ytPlayer.pauseVideo();
       }
       isPlaying = false;
+      pauseBackgroundAudioSession();
+      releaseWakeLock();
     } else {
       if (ytReady && ytPlayer && ytPlayer.playVideo) {
         ytPlayer.playVideo();
       }
       isPlaying = true;
+      startBackgroundAudioSession();
+      acquireWakeLock();
     }
     updatePlayPauseUI();
+    updateMediaSessionState();
   }
 
   function playNext(auto = false) {
@@ -396,6 +495,17 @@
       progressFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
       progressSlider.value = percent;
       timeDisplay.textContent = `${formatTime(currentTrackTime)} / ${formatTime(totalDuration)}`;
+
+      // Update system MediaSession position for lockscreen scrubber
+      if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession && totalDuration > 0) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: Math.max(0, totalDuration),
+            playbackRate: 1,
+            position: Math.min(Math.max(0, currentTrackTime), totalDuration)
+          });
+        } catch (e) {}
+      }
     }, 400);
   }
 
@@ -425,6 +535,12 @@
     playPauseBtn.addEventListener('click', togglePlayPause);
     nextBtn.addEventListener('click', () => playNext(false));
     prevBtn.addEventListener('click', playPrev);
+
+    // Keep Awake Toggle
+    if (wakeLockBtn) {
+      wakeLockBtn.addEventListener('click', toggleWakeLock);
+      updateWakeLockUI();
+    }
 
     // Shuffle Button
     shuffleBtn.addEventListener('click', () => {
@@ -537,12 +653,73 @@
       }
     });
 
-    // Media Session Action Handlers
+    // Mobile gesture audio-unlocker
+    const unlockAudioSession = () => {
+      startBackgroundAudioSession();
+      window.removeEventListener('click', unlockAudioSession);
+      window.removeEventListener('touchstart', unlockAudioSession);
+    };
+    window.addEventListener('click', unlockAudioSession, { once: true, passive: true });
+    window.addEventListener('touchstart', unlockAudioSession, { once: true, passive: true });
+
+    // Page Visibility and Screen Lock Handling
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        if (isPlaying && isWakeLockEnabled) {
+          acquireWakeLock();
+        }
+      } else {
+        // Phone locked or switched tab - ensure audio session remains active
+        if (isPlaying) {
+          startBackgroundAudioSession();
+        }
+      }
+    });
+
+    // Media Session Action Handlers for Lock Screen & Background Control
     if ('mediaSession' in navigator) {
-      navigator.mediaSession.setActionHandler('play', () => togglePlayPause());
-      navigator.mediaSession.setActionHandler('pause', () => togglePlayPause());
+      navigator.mediaSession.setActionHandler('play', () => {
+        if (!isPlaying) {
+          togglePlayPause();
+        }
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        if (isPlaying) {
+          togglePlayPause();
+        }
+      });
       navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
       navigator.mediaSession.setActionHandler('nexttrack', () => playNext(false));
+
+      try {
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+          if (details.seekTime != null && ytPlayer && ytReady) {
+            const baseStart = Number(currentSong?.start) || 0;
+            ytPlayer.seekTo(baseStart + details.seekTime, true);
+          }
+        });
+      } catch (e) {}
+
+      try {
+        navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+          const skipTime = details.seekOffset || 10;
+          if (ytPlayer && ytReady && ytPlayer.getCurrentTime) {
+            const cur = ytPlayer.getCurrentTime();
+            const baseStart = Number(currentSong?.start) || 0;
+            ytPlayer.seekTo(Math.max(baseStart, cur - skipTime), true);
+          }
+        });
+      } catch (e) {}
+
+      try {
+        navigator.mediaSession.setActionHandler('seekforward', (details) => {
+          const skipTime = details.seekOffset || 10;
+          if (ytPlayer && ytReady && ytPlayer.getCurrentTime) {
+            const cur = ytPlayer.getCurrentTime();
+            ytPlayer.seekTo(cur + skipTime, true);
+          }
+        });
+      } catch (e) {}
     }
   }
 
