@@ -13,7 +13,7 @@ A lightweight, no-backend, fast Gujarati Garba music player built with pure HTML
   - `Nonstop`
 - **Instant Search**: Search across song titles, artists, and album names in real-time.
 - **Full Player Controls**: Play, Pause, Previous, Next, Shuffle, Repeat (One / All), Seek slider, Volume control.
-- **Mobile Friendly & Fast**: Minimal payload, zero framework overhead, responsive UI.
+- **Mobile Friendly & Fast**: Minimal payload, zero framework overhead, responsive UI. (use brave browser if you want to play in the background or with the screen off)
 - **GitHub Pages Ready**: Static files only (`index.html`, `style.css`, `app.js`, `songs.json`).
 
 Viewed app.js:160-250
