@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aditya Garba — Pure Playlist & Player</title>
+  <meta name="description" content="Lightweight, fast, no-backend Gujarati Garba music player.">
+  <meta name="theme-color" content="#121214">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%3E<text y=%2226%22 font-size=%2226%22>🪘</text></svg>">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <span class="logo-icon">🪘</span>
+        <div class="logo-text">
+          <h1>Aditya Garba</h1>
+          <span class="badge" id="songCountBadge">1,400+ Tracks</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="shuffleAllBtn" class="btn btn-primary" title="Shuffle Play All Songs">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+          </svg>
+          Shuffle All
+        </button>
+      </div>
+    </header>
+
+    <!-- Search & Filters -->
+    <section class="controls-section">
+      <div class="search-bar-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Search by song name, artist, or album..." autocomplete="off" spellcheck="false">
+        <button id="clearSearchBtn" class="clear-btn" aria-label="Clear search" style="display: none;">&times;</button>
+      </div>
+
+      <!-- Filter Tags -->
+      <div class="tags-scroller">
+        <div class="tags-container" id="tagsContainer">
+          <button class="tag-btn active" data-tag="all">All Tracks</button>
+          <button class="tag-btn" data-tag="traditional">Traditional</button>
+          <button class="tag-btn" data-tag="dandiya">Dandiya</button>
+          <button class="tag-btn" data-tag="devotional">Devotional</button>
+          <button class="tag-btn" data-tag="sanedo">Sanedo</button>
+          <button class="tag-btn" data-tag="folk">Folk</button>
+          <button class="tag-btn" data-tag="nonstop">Nonstop</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Playlist Section -->
+    <main class="playlist-section">
+      <div class="playlist-header">
+        <h2 id="playlistTitle">All Songs</h2>
+        <span class="playlist-meta" id="playlistMeta">0 songs</span>
+      </div>
+
+      <div class="song-list" id="songList">
+        <!-- Rendered dynamically -->
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Loading Garba catalogue...</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom Player Bar -->
+    <footer class="player-bar" id="playerBar">
+      <!-- Hidden or minimized YouTube iframe container -->
+      <div id="ytPlayerContainer" class="yt-container">
+        <div id="ytPlayer"></div>
+      </div>
+
+      <!-- Track Progress Bar -->
+      <div class="progress-bar-container" id="progressContainer">
+        <div class="progress-fill" id="progressFill"></div>
+        <input type="range" class="progress-slider" id="progressSlider" min="0" max="100" value="0" step="0.1">
+      </div>
+
+      <div class="player-inner">
+        <!-- Current Track Info -->
+        <div class="current-track-info">
+          <div class="track-artwork" id="trackArtwork">🪘</div>
+          <div class="track-details">
+            <div class="track-title" id="currentTrackTitle">Select a song to play</div>
+            <div class="track-artist" id="currentTrackArtist">—</div>
+          </div>
+          <span class="track-tag" id="currentTrackTag" style="display:none;"></span>
+        </div>
+
+        <!-- Player Controls -->
+        <div class="player-controls">
+          <button id="prevBtn" class="control-btn" title="Previous Track">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+            </svg>
+          </button>
+          <button id="playPauseBtn" class="control-btn play-btn" title="Play/Pause">
+            <svg id="playIcon" viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            <svg id="pauseIcon" viewBox="0 0 24 24" width="28" height="28" fill="currentColor" style="display: none;">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+          </button>
+          <button id="nextBtn" class="control-btn" title="Next Track">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+            </svg>
+          </button>
+          <button id="shuffleBtn" class="control-btn toggle-btn" title="Toggle Shuffle">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+            </svg>
+          </button>
+          <button id="repeatBtn" class="control-btn toggle-btn" title="Toggle Repeat (All / One / Off)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/>
+            </svg>
+            <span class="repeat-one-indicator" id="repeatOneBadge" style="display: none;">1</span>
+          </button>
+        </div>
+
+        <!-- Extra Controls / Volume -->
+        <div class="player-extras">
+          <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+          <div class="volume-container">
+            <button id="muteBtn" class="control-btn small" title="Mute/Unmute">
+              <svg id="volumeIcon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+              </svg>
+            </button>
+            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100" step="1">
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
