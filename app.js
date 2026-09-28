@@ -92,6 +92,14 @@
   }
 
   function toggleWakeLock() {
+    if (!('wakeLock' in navigator)) {
+      if (!window.isSecureContext) {
+        alert('Keep Awake (Screen Wake Lock) requires HTTPS or localhost to function on mobile.');
+      } else {
+        alert('Screen Wake Lock is not supported on this browser.');
+      }
+      return;
+    }
     isWakeLockEnabled = !isWakeLockEnabled;
     if (isWakeLockEnabled && isPlaying) {
       acquireWakeLock();
@@ -103,6 +111,13 @@
 
   function updateWakeLockUI() {
     if (!wakeLockBtn) return;
+    const isSupported = ('wakeLock' in navigator) && window.isSecureContext;
+    if (!isSupported) {
+      wakeLockBtn.title = 'Keep Screen Awake (Requires HTTPS / Supported Browser)';
+      const textEl = wakeLockBtn.querySelector('.btn-text');
+      if (textEl) textEl.textContent = 'Keep Awake';
+      return;
+    }
     wakeLockBtn.classList.toggle('active', isWakeLockEnabled);
     wakeLockBtn.setAttribute('aria-pressed', isWakeLockEnabled ? 'true' : 'false');
     const textEl = wakeLockBtn.querySelector('.btn-text');
